@@ -1,0 +1,90 @@
+//#include "navigation.h"
+#include "navi2.h" 
+
+
+void setup() {
+    delay(2500);                //wait for me to turn on the switch
+    Serial.begin(9600);         //for debugging
+    setupColor();                 //colorSensor
+    setupTimer();               //interrupt motion
+    setupLine();
+    startGame(1);
+    
+}
+
+
+void loop() {
+
+    while (millis() < gameTime && coinCnt)
+    {
+        getCoin();
+        pickup();
+        deliver();
+    }
+    returnHome();
+    while(1);
+}
+
+void startGame(char roundNum){
+
+    float dist;
+    if (roundNum)
+    {
+        coinCnt = 6*(roundNum+1);
+        gameTime = (4+roundNum+(roundNum==3))*60000;
+        if (roundNum==1)
+        {
+            dist = 2*HYPO_LEN+CEN_OUT_CR+ERR_LEN;
+            for (char i=0; i<NUM_COLORS-1; i++)
+            {
+                 coinArray[i][1] = true;   
+                 coinArray[i][3] = true; 
+            }
+        }
+        else 
+        {
+            dist = (4-roundNum)*HYPO_LEN+CEN_OUT_CR+ERR_LEN;
+            for (char i=0; i<NUM_COLORS-1; i++)
+            {
+                for (char j=3-roundNum; j<4; j++)
+                {
+                    coinArray[i][j] = true;
+                }
+            }
+        }
+        
+    }
+    else    //tiebreaker
+    {
+        coinCnt = 14;
+        gameTime = 4*60000;
+        dist = HYPO_LEN + CEN_OUT_CR;
+        for (char i=0; i<NUM_COLORS-1; i++)
+        {
+            for (char j=0; j<4; j++)
+            {
+                coinArray[i][j] = true;
+            }
+        }
+    }
+    drivi(-42);  while (TIMSK3);  
+    rotati(45);  while (TIMSK3);  
+    
+    constDrivi(dist, 300);           
+    //drivi(dist); 
+
+    while (!JUNCTION) ineFollow();
+    float record = odometer();
+    while (odometer() - record < BOT_LEN + JUN_LEN) lineFollow();
+}
+
+void returnHome(){
+    if (currSpot != 5)
+    {
+        centerinMove();
+    }
+    destColor=GRAY;
+    rotati(colorVector[currColor][destColor]); while(TIMSK3);
+    drivi(42);
+}
+
